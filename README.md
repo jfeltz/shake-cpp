@@ -37,9 +37,12 @@ buildPaths build_par =
 srcRules :: Maybe FilePath -> BuildM Rules ()
 srcRules boost_root = do 
   src_root <- inputDir sourceObj
-
-  Rule.archive "project-lib" [Leaves "project" NonTest False]
   
+  -- rule for an archive, named project-lib.o, comprised of sources
+  -- under the src/foo/ directory
+  Rule.archive "project-lib" [Leaves "foo" NonTest False]
+  
+  -- rule for objects built from sources in "src/"
   Rule.object sourceObj "" [] $
     LibDeps [src_root] [((</> "stage/lib") <$> boost_root, boostLibs)]
 
@@ -53,10 +56,6 @@ testRules boost_root = do
     LibDeps [src_root, test_root] [((</> "stage/lib") <$> boost_root, boostLibs)]
   
   -- rule defining build for test executables
-  -- based on build configuration, the prefix and test directory
-  -- are already defined, however the dependencies may cross 
-  -- between objects built in the test directory and elsewhere
-  
   Rule.test_execs
     []
     Rule.ExecDeps {
@@ -65,13 +64,13 @@ testRules boost_root = do
       Rule.exeLinked   = [((</> "stage/lib") <$> boost_root, boostTestLibs)]
     }
   
-  -- Rule for test pass states, TODO command line flags to pass to test
+  -- Rule for test pass states, this makes "./shake .build/test-state/test_example.pass" 
+  -- as a test runner case possible
   Rule.test_states 
   
   -- Bind source rules into this monad (this is a super-set of those)
   srcRules boost_root
   
+  -- clean rule, derived from BuildPaths
   Rule.clean
 ```
-  
-
