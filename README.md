@@ -1,4 +1,5 @@
 Shake C++ Abstraction Layer
+---------------------------
 
 shake-cpp
 =========
@@ -13,7 +14,8 @@ This project is being published mainly for the benefit of the Haskell Shake comm
 
 Main design features & approach:
     
-  * localize the source <-> obj and obj <-> exec isomorphisms in a single data-structure, and generalizes operations on them. This approach works very well in managing the complexity of shake rule patterns.
+  * separate the source <-> obj and obj <-> exec isomorphisms in a single data-structure, and generalize operations on that. This approach works very well in managing the complexity of shake rule patterns:
+  * 
 ```haskell
 buildPaths :: FilePath -> BuildPaths 
 buildPaths build_par =  
@@ -59,7 +61,7 @@ testRules boost_root = do
     []
     Rule.ExecDeps {
       Rule.includeDeps = [],
-      Rule.builtDeps   = [(Rule.Archive, "ot")], 
+      Rule.builtDeps   = [(Rule.Archive, "project-lib")], 
       Rule.exeLinked   = [((</> "stage/lib") <$> boost_root, boostTestLibs)]
     }
   
