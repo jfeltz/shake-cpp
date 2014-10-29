@@ -17,8 +17,10 @@ Main design features & approach:
 buildPaths :: FilePath -> BuildPaths 
 buildPaths build_par =  
   BuildPaths {  
-    outputPfx   = build_par, 
+    outputPfx   = build_par, -- E.g. .build/ or build_ or dist et" 
     testLib     = "test-lib",
+    -- An isomorphism, the second member is prefixed with outputPfx,
+    -- so ".build/bin/a/b/last.cc" when going from left to right for input "src/a/b/last.cc"
     sourceObj   = Pair "src"   "bin", 
     testObj     = Pair "tests" "tests", 
     testExec    = Pair (build_par </> "tests") "test-bin",
