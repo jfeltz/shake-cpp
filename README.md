@@ -15,7 +15,7 @@ This project is being published mainly for the benefit of the Haskell Shake comm
 Main design features & approach:
     
   * separate the source <-> obj and obj <-> exec isomorphisms in a single data-structure, and generalize operations on that. This approach works very well in managing the complexity of shake rule patterns:
-  * 
+
 ```haskell
 buildPaths :: FilePath -> BuildPaths 
 buildPaths build_par =  
@@ -38,7 +38,7 @@ srcRules :: Maybe FilePath -> BuildM Rules ()
 srcRules boost_root = do 
   src_root <- inputDir sourceObj
   
-  -- rule for an archive, named project-lib.o, comprised of sources
+  -- rule for an archive, named "./lib/project-lib.o", comprised of sources
   -- under the src/foo/ directory
   Rule.archive "project-lib" [Leaves "foo" NonTest False]
   
@@ -50,7 +50,8 @@ testRules :: Maybe FilePath -> BuildM Rules ()
 testRules boost_root = do 
   src_root <- inputDir sourceObj
   test_root <- inputDir testObj
-
+  
+  -- rule defining test objects, using boost unit in this case
   Rule.object testObj [] 
     ["BOOST_TEST_MAIN","BOOST_TEST_DYN_LINK"] $
     LibDeps [src_root, test_root] [((</> "stage/lib") <$> boost_root, boostLibs)]
@@ -60,7 +61,7 @@ testRules boost_root = do
     []
     Rule.ExecDeps {
       Rule.includeDeps = [],
-      Rule.builtDeps   = [(Rule.Archive, "project-lib")], 
+      Rule.builtDeps   = [(Rule.Archive, "project-lib")], -- using "./lib/project-lib.o"
       Rule.exeLinked   = [((</> "stage/lib") <$> boost_root, boostTestLibs)]
     }
   
