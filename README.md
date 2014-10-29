@@ -20,7 +20,7 @@ buildPaths build_par =
     outputPfx   = build_par, -- E.g. .build/ or build_ or dist etc
     testLib     = "test-lib",
     -- An isomorphism, the second member is prefixed with outputPfx,
-    -- so ".build/bin/a/b/last.cc" when going from left to right for input "src/a/b/last.cc"
+    -- so ".build/bin/a/b/last.o" when going from left to right for input "src/a/b/last.cc"
     sourceObj   = Pair "src"   "bin", 
     testObj     = Pair "tests" "tests", 
     testExec    = Pair (build_par </> "tests") "test-bin",
