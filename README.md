@@ -1,8 +1,5 @@
-Shake C++ Abstraction Layer
+A Shake C++ Abstraction Layer
 ---------------------------
-
-shake-cpp
-=========
 The following is an experimental abstraction layer for the shake build system, specifically for abstracting away concerns of:
   
   * C++ toolchain, e.g. linker and compiler
