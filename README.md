@@ -17,7 +17,7 @@ Main design features & approach:
 buildPaths :: FilePath -> BuildPaths 
 buildPaths build_par =  
   BuildPaths {  
-    outputPfx   = build_par, -- E.g. .build/ or build_ or dist et" 
+    outputPfx   = build_par, -- E.g. .build/ or build_ or dist etc
     testLib     = "test-lib",
     -- An isomorphism, the second member is prefixed with outputPfx,
     -- so ".build/bin/a/b/last.cc" when going from left to right for input "src/a/b/last.cc"
