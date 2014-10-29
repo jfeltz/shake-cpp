@@ -1,6 +1,6 @@
 A Shake C++ Abstraction Layer
 ---------------------------
-The following is an experimental abstraction layer for the shake build system, specifically for abstracting away concerns of:
+The following is an experimental abstraction layer for the [Shake build system] (https://hackage.haskell.org/package/shake) , specifically for abstracting away concerns of:
   
   * C++ toolchain, e.g. linker and compiler
   * testing tools
