@@ -14,7 +14,7 @@ This project is being published mainly for the benefit of the Haskell Shake comm
 
 Main design features & approach:
     
-  * separate the source <-> obj and obj <-> exec isomorphisms in a single data-structure, and generalize operations on that. This approach works very well in managing the complexity of shake rule patterns:
+  * separate the source <-> obj and obj <-> exec, etc isomorphisms in a single data-structure, and generalize operations on that. This approach works very well in managing the complexity of shake rule patterns:
 
 ```haskell
 buildPaths :: FilePath -> BuildPaths 
