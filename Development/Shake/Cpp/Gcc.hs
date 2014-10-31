@@ -21,8 +21,7 @@ gccLibs = unwords . L.map (uncurry libGroup) where
   libGroup searchpath members = 
     maybe [] (gccFlag 'L') searchpath ++ unwords (L.map (gccFlag 'l') members)
 
--- FIXME objCompiler should be oblivious to src translation,
--- it only needs the src path, object path, and the extra include
+-- TODO use debug flag, add header dependency calls
 objCompiler ::  [Def] -> LibDeps -> Debug -> FilePath -> FilePath -> Action ()
 objCompiler defs deps debug' src dst = do
      let m = dst -<.> "m" 
@@ -40,6 +39,7 @@ objCompiler defs deps debug' src dst = do
      -- cmd is executed if not met by makefile dependency 
      needMakefileDependencies m
 
+-- TODO use debug flag
 exeCompiler :: 
   [Def] 
   -> [FilePath] 

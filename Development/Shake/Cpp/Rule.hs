@@ -119,8 +119,7 @@ test_execs defs exec_deps = do
   let cf = exeCompiler . toolchain $ b 
   let test_exec_bin = outputPath testExec . buildPaths . paths $ b 
       test_pfx = testPfx . paths $ b
-  -- error $ "p: " ++ test_exec_bin
-  lift $ -- FIXME
+  lift $
     (*>) (test_exec_bin ++ "//" ++ test_pfx ++ "*" <.> exe) $ \exec' -> do
       let objects = map (uncurry (toFile (paths b)))  (builtDeps exec_deps)
           test_obj = morphLeft (buildPaths . paths $ b) "o" testExec exec' 

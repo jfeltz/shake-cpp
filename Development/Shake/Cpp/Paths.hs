@@ -1,4 +1,3 @@
--- FIXME testLib or testObjects?
 module Development.Shake.Cpp.Paths where
 import Development.Shake.FilePath 
 import qualified Data.List as L 
