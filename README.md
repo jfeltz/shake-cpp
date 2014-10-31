@@ -13,7 +13,7 @@ The following is an experimental abstraction layer for the [Shake build system](
 
 Main design approach:
     
-  * **shake-cpp** moves ```*.cpp``` **<->** ```*.o``` and ```*.obj **<->** ```*.exe``` isomorphisms to a single data-structure, and generalizes operations on that. This approach works very well in managing the complexity of shake rule patterns:
+  * **shake-cpp** moves ```*.cpp``` **<->** ```*.o``` and ```*.obj``` **<->** ```*.exe``` isomorphisms to a single data-structure, and generalizes operations on that. This approach works very well in managing the complexity of shake rule patterns:
 
 ```haskell
 buildPaths :: FilePath -> BuildPaths 
