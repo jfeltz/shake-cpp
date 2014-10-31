@@ -3,13 +3,12 @@ module Development.Shake.Cpp.Paths where
 import Development.Shake.FilePath 
 import qualified Data.List as L 
 
--- | Invariant: input directory is single path element
-data Pair = Pair { 
+data Iso = Iso { 
   input :: FilePath,
   output :: FilePath 
   } 
 
-morphLeft :: BuildPaths -> String -> (BuildPaths -> Pair) -> FilePath -> FilePath 
+morphLeft :: BuildPaths -> String -> (BuildPaths -> Iso) -> FilePath -> FilePath 
 morphLeft bp in_ext f output_path = 
   input (f bp) </> dropped_output -<.> in_ext 
   where
@@ -24,10 +23,10 @@ morphLeft bp in_ext f output_path =
 data BuildPaths = BuildPaths {
   outputPfx    :: FilePath,
   testLib      :: FilePath, 
-  sourceObj    :: Pair, -- ^ source objects
-  testObj      :: Pair, -- ^ test objects
-  testExec     :: Pair, -- ^ test executables
-  testStates   :: Pair,  -- ^ stores test pass states
+  sourceObj    :: Iso, -- ^ source objects
+  testObj      :: Iso, -- ^ test objects
+  testExec     :: Iso, -- ^ test executables
+  testStates   :: Iso,  -- ^ stores test pass states
   archives     :: FilePath  -- ^ stores custom archive targets
 }
 
@@ -37,10 +36,10 @@ testLibPath bp = outputPfx bp </> testLib bp
 archivePath :: BuildPaths -> FilePath
 archivePath bp = outputPfx bp </> archives bp 
 
-outputPath :: (BuildPaths -> Pair) -> BuildPaths -> FilePath 
+outputPath :: (BuildPaths -> Iso) -> BuildPaths -> FilePath 
 outputPath f bp = outputPfx bp </> (output . f $ bp)
 
-inputPath :: (BuildPaths -> Pair) -> BuildPaths -> FilePath 
+inputPath :: (BuildPaths -> Iso) -> BuildPaths -> FilePath 
 inputPath f = input . f
 
 data Paths = Paths {
@@ -68,9 +67,9 @@ defaultBuildPaths build_par =
   BuildPaths {  
     outputPfx   = build_par, 
     testLib     = "test-lib",
-    sourceObj   = Pair "src"   "bin", 
-    testObj     = Pair "tests" "tests", 
-    testExec    = Pair (build_par </> "tests") "test-bin",
-    testStates  = Pair (build_par </> "test-bin") "test-state",
+    sourceObj   = Iso "src"   "bin", 
+    testObj     = Iso "tests" "tests", 
+    testExec    = Iso (build_par </> "tests") "test-bin",
+    testStates  = Iso (build_par </> "test-bin") "test-state",
     archives    = "lib"
    }

@@ -1,17 +1,19 @@
-A Shake C++ Abstraction Layer
+A Shake C++ Framework 
 ---------------------------
-The following is an experimental abstraction layer for the [Shake build system] (https://hackage.haskell.org/package/shake) , specifically for abstracting away concerns of:
+This project is a practical example of using shake against a fairly small C++
+build problem case. The design concepts of *shake-cpp* can likely be applied to
+many different build problems as well, so this is being made public for
+educational purposes to the Shake/Haskell community.
+
+The following is an experimental abstraction layer for the [Shake build system](https://hackage.haskell.org/package/shake) , specifically for abstracting away concerns of:
   
   * C++ toolchain, e.g. linker and compiler
   * testing tools
   * path conventions, e.g. ``./src`` vs ``./sources`` 
 
-
-This project is being published mainly for the benefit of the Haskell Shake community. It is a practical example of using shake against a fairly small C++ build problem case, and so it should be fairly educational.
-
-Main design features & approach:
+Main design approach:
     
-  * separate the source <-> obj and obj <-> exec, etc isomorphisms in a single data-structure, and generalize operations on that. This approach works very well in managing the complexity of shake rule patterns:
+  * **shake-cpp** moves ```*.cpp``` **<->** ```*.o``` and ```*.obj **<->** ```*.exe``` isomorphisms to a single data-structure, and generalizes operations on that. This approach works very well in managing the complexity of shake rule patterns:
 
 ```haskell
 buildPaths :: FilePath -> BuildPaths 
@@ -20,16 +22,17 @@ buildPaths build_par =
     outputPfx   = build_par, -- E.g. .build/ or build_ or dist etc
     testLib     = "test-lib",
     -- An isomorphism, the second member is prefixed with outputPfx,
-    -- so ".build/bin/a/b/last.o" when going from left to right for input "src/a/b/last.cc"
-    sourceObj   = Pair "src"   "bin", 
-    testObj     = Pair "tests" "tests", 
-    testExec    = Pair (build_par </> "tests") "test-bin",
-    testStates  = Pair (build_par </> "test-bin") "test-state",
+    -- so ".build/bin/a/b/last.o" when going from left to right,
+    --   for input "src/a/b/last.cc"
+    sourceObj   = Iso "src"   "bin", 
+    testObj     = Iso "tests" "tests", 
+    testExec    = Iso (build_par </> "tests") "test-bin",
+    testStates  = Iso (build_par </> "test-bin") "test-state",
     archives    = "lib"
    }
 ```
 
-  * Instead of replacing shake rules, it enhances them with a Monad, ```BuildM``` that passes an environment ``Env`` to build targets and tool-chain members.
+  * **shake-cpp** enhances shake rules with a monad, ```BuildM``` that passes an environment ``Env`` to build targets and tool-chain calls.
 
 
 ```haskell

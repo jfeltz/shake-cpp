@@ -89,19 +89,16 @@ data Env = Env {
   toolchain :: ToolChain
   }
 
-outputDir :: (Monad m, Functor m) => (BuildPaths -> Pair) -> BuildM m FilePath 
+outputDir :: (Monad m, Functor m) => (BuildPaths -> Iso) -> BuildM m FilePath 
 outputDir subpath = do 
   build_paths <- buildPaths . paths <$> build
   return $ outputPfx build_paths </> output (subpath build_paths) 
 
-inputDir :: (Monad m, Functor m) => (BuildPaths -> Pair) -> BuildM m FilePath 
+inputDir :: (Monad m, Functor m) => (BuildPaths -> Iso) -> BuildM m FilePath 
 inputDir subpath = do 
   build_paths <- buildPaths . paths <$> build
   return $ input (subpath build_paths) 
 
-input' :: (BuildPaths -> Pair) -> BuildPaths -> FilePath
-input' f = input . f
-   
 type BuildM m a = ReaderT Env m a 
 
 build :: (Monad m) => BuildM m Env 

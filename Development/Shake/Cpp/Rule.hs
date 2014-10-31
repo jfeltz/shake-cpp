@@ -13,7 +13,7 @@ import qualified Data.List as L
 import           System.Exit
 
 -- | Rule for objects rooted at sub-path
-object :: (BuildPaths -> Pair) -> FilePath -> [Def] -> LibDeps -> BuildM Rules ()
+object :: (BuildPaths -> Iso) -> FilePath -> [Def] -> LibDeps -> BuildM Rules ()
 object pf sub_path defs obj_deps = do 
   obj_ext <- objExtension . paths <$> build
   obj_compiler <- objCompiler . toolchain <$> build
