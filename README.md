@@ -1,8 +1,8 @@
 A Shake C++ Framework 
 ---------------------------
 This project is a practical example of using shake against a fairly small C++
-build problem case. The design concepts of *shake-cpp* can likely be applied to
-many different build problems as well, so this is being made public for
+build problem case. The design concepts of *shake-cpp* can likely be applied to 
+non-C++ build problems as well, so this is being made public for
 educational purposes to the Shake/Haskell community.
 
 The following is an experimental abstraction layer for the [Shake build system](https://hackage.haskell.org/package/shake) , specifically for abstracting away concerns of:
