@@ -32,11 +32,15 @@ objCompiler defs deps debug' src dst = do
        (gccIncludes $ includes deps)
        (gccLibs $ linked deps)
        (gccDefs defs)
+
+       -- generate m, which stores header and object
+       -- dependency information
        "-MMD -MF" 
        [m]
-     -- Assign (.o -> cc) dependency on difference of 'm' 
-     -- Thus, on all calls to this monad other than the first, 
-     -- cmd is executed if not met by makefile dependency 
+
+     -- Bind (.o -> cc) dependency action on difference of 'm' 
+     -- Thus, on run-cases of this monad other than the first, 
+     -- the above cmd is executed if not met by dependency 
      needMakefileDependencies m
 
 -- TODO use debug flag
