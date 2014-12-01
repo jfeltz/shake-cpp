@@ -66,7 +66,7 @@ testRules = do
   Rule.clean
 ```
 
-and in module Deps:
+and in module **Deps**:
 ```haskell
 module Deps where
 
