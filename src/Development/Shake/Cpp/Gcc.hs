@@ -1,6 +1,5 @@
 module Development.Shake.Cpp.Gcc where
 import qualified Data.List as L
-import qualified Data.Set as S
 import           Development.Shake
 import           Development.Shake.Cpp.Build
 import           Development.Shake.FilePath
@@ -66,9 +65,9 @@ exeCompiler objects linked debug' exec_bin =
       exec_bin
       objects
       link_expressions
-  where
-   fromInterpreted :: String -> Action String 
-   fromInterpreted []   = return [] 
-   fromInterpreted expr = do
-     Stdout out <- cmd expr 
-     return out
+  -- where
+  --  fromInterpreted :: String -> Action String 
+  --  fromInterpreted []   = return [] 
+  --  fromInterpreted expr = do
+  --    Stdout out <- cmd expr 
+  --    return out

@@ -64,8 +64,6 @@ exec name obj_type sub_path exec_deps = do
           <.> objExtension (paths b)
 
 execCompile :: FilePath -> ExecDeps -> Env -> FilePath -> Action ()
--- execCompile :: [Def] -> FilePath -> ExecDeps -> Env -> FilePath -> Action ()
--- execCompile defs main_obj exe_deps b =
 execCompile main_obj exe_deps b =
   let cf = exeCompiler $ toolchain b in
     \exec_bin -> do
