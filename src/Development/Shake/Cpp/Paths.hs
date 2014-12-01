@@ -7,8 +7,12 @@ data Iso = Iso {
   output :: FilePath 
   } 
 
+-- output_path .build/test-bin/tests/ide/foo_test
+-- .build/tests/tests/ide/foo_test.o
+
 morphLeft :: BuildPaths -> String -> (BuildPaths -> Iso) -> FilePath -> FilePath 
 morphLeft bp in_ext f output_path = 
+  -- .build/tests/
   input (f bp) </> dropped_output -<.> in_ext 
   where
     -- | Drop the full output prefix of the output file path
@@ -21,16 +25,12 @@ morphLeft bp in_ext f output_path =
 
 data BuildPaths = BuildPaths {
   outputPfx    :: FilePath,
-  testLib      :: FilePath, 
   sourceObj    :: Iso, -- ^ source objects
   testObj      :: Iso, -- ^ test objects
   testExec     :: Iso, -- ^ test executables
   testStates   :: Iso,  -- ^ stores test pass states
   archives     :: FilePath  -- ^ stores custom archive targets
 }
-
-testLibPath :: BuildPaths -> FilePath
-testLibPath bp = outputPfx bp </> testLib bp 
 
 archivePath :: BuildPaths -> FilePath
 archivePath bp = outputPfx bp </> archives bp 
@@ -43,7 +43,12 @@ inputPath f = input . f
 
 data Paths = Paths {
   mainName     :: String,
-  testPfx      :: String, -- ^ e.g. "test_ in test_source.cpp"
+  testSfx      :: String, 
+
+  -- ^ e.g. "_test in source_test.cpp"
+  -- this allows one to pattern match without
+  -- regard to test name
+
   cppExtension :: String, -- ^ e.g. "cpp"
   objExtension :: String, -- ^ e.g. "o"
   tsExtension  :: String, -- ^ e.g. "pass"
@@ -56,8 +61,8 @@ defaultPaths build_par =
     mainName     = "main", 
     cppExtension = "cc", 
     objExtension = "o", 
-    tsExtension  = "pass", 
-    testPfx      = "test_",
+    tsExtension  = "pass",
+    testSfx      = "_test",
     buildPaths   = defaultBuildPaths build_par
     }
 
@@ -65,7 +70,6 @@ defaultBuildPaths :: FilePath -> BuildPaths
 defaultBuildPaths build_par =  
   BuildPaths {  
     outputPfx   = build_par, 
-    testLib     = "test-lib",
     sourceObj   = Iso "src"   "bin", 
     testObj     = Iso "tests" "tests", 
     testExec    = Iso (build_par </> "tests") "test-bin",

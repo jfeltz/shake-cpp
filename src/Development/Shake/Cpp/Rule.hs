@@ -6,15 +6,20 @@ import           Development.Shake
 import           Development.Shake.FilePath
 import           Development.Shake.Cpp.Build
 import           Development.Shake.Cpp.Paths
+import           Development.Shake.Cpp.ExecDeps
+import           Development.Shake.Cpp.ObjectDeps
+import           Development.Shake.Cpp.Obj
 
 import           Control.Applicative ((<$>))
 import           Control.Monad.Reader
 import qualified Data.List as L
+import qualified Data.Set as S
+import qualified Data.Map as M
 import           System.Exit
 
 -- | Rule for objects rooted at sub-path
-object :: (BuildPaths -> Iso) -> FilePath -> [Def] -> LibDeps -> BuildM Rules ()
-object pf sub_path defs obj_deps = do 
+object :: (BuildPaths -> Iso) -> FilePath -> ObjectDeps -> BuildM Rules ()
+object pf sub_path object_deps = do 
   obj_ext <- objExtension . paths <$> build
   obj_compiler <- objCompiler . toolchain <$> build
   bp <- buildPaths . paths <$> build 
@@ -28,60 +33,50 @@ object pf sub_path defs obj_deps = do
   lift $ (*>) (parent ++ "//*." ++ obj_ext) $ 
     \obj ->
       obj_compiler 
-        defs 
-        obj_deps 
+        (S.toList . defs $ object_deps)
+        (S.toList . includes $ object_deps)
         debug' 
         (morphLeft bp cpp_ext pf obj)
         obj
-
--- | Return the object parent location for an object type 
-toLibBin :: ObjDep -> BuildPaths -> FilePath 
-toLibBin Archive = archivePath 
-toLibBin Obj     = outputPath sourceObj
-toLibBin TestObj = testLibPath 
             
 exec :: 
-  String ->
-  ObjDep -> -- The object type that determines source location 
-  FilePath -> -- The parent in the source tree 
-  [Def] -> 
-  ExecDeps -> -- Deps that can be anywhere 
-  BuildM Rules ()
-exec name obj_type sub_path defs exec_deps = do 
+  String 
+  -> Obj
+  -> FilePath -- The parent in the source tree 
+  -> ExecDeps 
+  -> BuildM Rules ()-- Deps that can be anywhere
+exec name obj_type sub_path exec_deps = do 
   b <- build
   main_obj <- mainObjPath 
   lift $ 
     (*>) 
       -- In this case the destination executable is not necessarily 
       -- test_ for a test object, this is a different scenario 
-      (fromObjDep obj_type (buildPaths $ paths b) </> name <.> exe) -- the pattern for the exe
-      (execCompile defs main_obj exec_deps b) 
+      (toExeBin obj_type (buildPaths $ paths b) </> name <.> exe)
+      (execCompile main_obj exec_deps b) 
   where
     mainObjPath = do 
       b <- build
       return $ 
-        (toLibBin obj_type (buildPaths $ paths b) </> sub_path </> (mainName . paths $ b)) 
+        (toLibBin 
+          obj_type 
+          (buildPaths $ paths b) </> sub_path </> (mainName . paths $ b)) 
           <.> objExtension (paths b)
-    -- | return a target directory for the exe
-    -- from the object type
-    fromObjDep :: ObjDep -> BuildPaths -> FilePath 
-    fromObjDep Archive = archivePath
-    fromObjDep Obj     = outputPath sourceObj
-    fromObjDep TestObj = outputPath testObj
 
-execCompile :: [Def] -> FilePath -> ExecDeps -> Env -> FilePath -> Action ()
-execCompile defs main_obj exe_deps b =
+execCompile :: FilePath -> ExecDeps -> Env -> FilePath -> Action ()
+-- execCompile :: [Def] -> FilePath -> ExecDeps -> Env -> FilePath -> Action ()
+-- execCompile defs main_obj exe_deps b =
+execCompile main_obj exe_deps b =
   let cf = exeCompiler $ toolchain b in
     \exec_bin -> do
-     let objects = map (uncurry (toFile (paths b)))  (builtDeps exe_deps)
      need $ main_obj : objects 
      cf 
-       defs
        (main_obj : objects)
-       (includeDeps exe_deps)
        (exeLinked exe_deps)
        (debug b)
        exec_bin
+  where 
+    objects = map (uncurry (toFile (paths b))) (M.toList $ builtDeps exe_deps)
 
 archive :: FilePath -> [Target] -> BuildM Rules () 
 archive dst_obj target_deps = do 
@@ -95,39 +90,30 @@ archive dst_obj target_deps = do
     need objects
     archiver_f obj objects
      
-data ObjDep = Archive | Obj | TestObj
-
 -- | Pre-conditiation: filepath is relative  
-toFile :: Paths -> ObjDep -> FilePath  -> FilePath
-toFile paths' dep rel = 
+toFile :: Paths -> FilePath -> Obj  -> FilePath
+toFile paths' rel dep = 
   (-<.> objExtension paths') (toLibBin dep (buildPaths paths') </> rel)
 
--- TODO Exec should be scoped to a separate module, 
-data ExecDeps = ExecDeps {
-  includeDeps :: [FilePath],
-  builtDeps :: [(ObjDep, FilePath)],
-  exeLinked :: [(Maybe String, [String])]
-  }
-  
 -- | Env a rule covering a general case for test executables. 
 --   By convention, each test executable depends on an object following
 --   test-bin/../test_pfx*.o 
 
-test_execs :: [Def] -> ExecDeps -> BuildM Rules ()
-test_execs defs exec_deps = do
-  b <- build 
+testExecs :: ExecDeps -> BuildM Rules ()
+testExecs exec_deps = do
+  b <- build
   let cf = exeCompiler . toolchain $ b 
   let test_exec_bin = outputPath testExec . buildPaths . paths $ b 
-      test_pfx = testPfx . paths $ b
+      test_sfx = testSfx . paths $ b
   lift $
-    (*>) (test_exec_bin ++ "//" ++ test_pfx ++ "*" <.> exe) $ \exec' -> do
-      let objects = map (uncurry (toFile (paths b)))  (builtDeps exec_deps)
+    -- Test rule dependent on objects source tree for 
+    (*>) (test_exec_bin ++ "//" ++ "*" ++ test_sfx <.> exe) $ \exec' -> do
+      let objects  = map (uncurry (toFile $ paths b))  (M.toList $ builtDeps exec_deps)
+          -- .build/tests/tests/ide/foo_test.o
           test_obj = morphLeft (buildPaths . paths $ b) "o" testExec exec' 
       need $ test_obj : objects 
       cf
-       defs
        (test_obj : objects)
-       (includeDeps exec_deps)
        (exeLinked exec_deps)
        (debug b)
        exec'
@@ -146,8 +132,8 @@ test_states = do
     (*>) (test_state_path ++ "//*." ++ test_state_ext) $
       \state -> quietly $ do 
         -- Convert test state to test exec
-        let test = morphLeft bp [] testStates state 
-        need [test]
+        let test_exec = morphLeft bp [] testStates state 
+        need [test_exec]
         -- Note:
         --   This will fail to satisfy the rule if either command fails.
 
@@ -156,10 +142,14 @@ test_states = do
 
         -- However this also means that we now need to check the result,
         -- otherwise shake will not consider the ret code as a failing case. 
-        (Exit c) <- command [WithStderr False] test []
+        (Exit c) <- command [WithStderr False] test_exec []
         case c of 
-          (ExitFailure _) -> return () 
-          ExitSuccess     -> cmd "touch" state
+          (ExitFailure _) -> do 
+            liftIO . putStrLn $ "non-zero exit code received" 
+            cmd "rm" state
+          ExitSuccess     -> do 
+            liftIO . putStrLn $ "zero exit code received" 
+            cmd "touch" state
 
 clean :: BuildM Rules ()
 clean = do 

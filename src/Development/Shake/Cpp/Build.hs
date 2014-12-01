@@ -3,7 +3,9 @@ module Development.Shake.Cpp.Build where
 import           Control.Applicative ((<$>))
 import           Control.Monad.Reader
 import           Development.Shake
+import           Development.Shake.Cpp.ExecDeps
 import           Development.Shake.FilePath
+-- import           Development.Shake.Cpp.Obj
 import qualified Filesystem.Path.CurrentOS as FS
 import qualified Data.List as L
 
@@ -13,25 +15,23 @@ type Def = String
 type Include = String
 type LibPath = FilePath
 
-data ObjType = Test | NonTest deriving Eq
 data Target = 
-  Src { path :: FilePath, objType :: ObjType } 
+  Src { path :: FilePath, test :: Bool } 
   -- ^ pre-cond, path is relative file name
-  | Leaves { root :: FilePath, objType :: ObjType, isExec :: Bool } 
+  | Leaves { root :: FilePath, test :: Bool, isExec :: Bool } 
   -- ^ pre-cond, path is relative directory of object type 
 
 -- | return all Cpp sources under sub path
-sourceLeaves :: FilePath -> ObjType -> Bool -> BuildM Action [FilePath]
-sourceLeaves sub_path obj_type use_exec = do 
+sourceLeaves :: FilePath -> Bool -> Bool -> BuildM Action [FilePath]
+sourceLeaves sub_path test' use_exec = do 
   cpp_ext <- cppExtension . paths <$> build
-
   (parent, is_exec) <- 
-    case obj_type of
-      Test    -> do 
-        pfx <- testPfx . paths <$> build 
+    if test'
+      then do 
+        sfx <- testSfx . paths <$> build 
         test_dir <- inputDir testObj
-        return (test_dir, L.isPrefixOf pfx . basename) 
-      NonTest -> do 
+        return (test_dir, L.isSuffixOf sfx . basename) 
+      else do 
         main <- mainName . paths <$> build 
         src_dir <- inputDir sourceObj
         return (src_dir, (==) main . basename) 
@@ -44,35 +44,34 @@ sourceLeaves sub_path obj_type use_exec = do
     basename = FS.encodeString . FS.basename . FS.filename . FS.decodeString
 
 toFiles :: Target -> BuildM Action [FilePath]
-toFiles (Src p ty) = 
+toFiles (Src p test') = 
   let file = FS.encodeString . FS.filename . FS.decodeString $ p in do
     paths' <- paths <$> build
     (bin_parent, filename) <- 
-      case ty of 
-        Test    -> (, file) <$> outputDir testObj
-        NonTest -> (, testPfx paths' ++ file) <$> outputDir sourceObj
+      if test' 
+        then (, file) <$> outputDir testObj
+        else (, file ++ testSfx paths') <$> outputDir sourceObj
     return
       [bin_parent  
         </> (FS.encodeString . FS.directory . FS.decodeString $ p)
         </> (filename <.> objExtension paths')] 
-toFiles (Leaves r ty e) = do 
-  bin_parent <- outputDir (if ty == Test then testObj else sourceObj)
+toFiles (Leaves r test' e) = do 
+  bin_parent <- outputDir (if test' then testObj else sourceObj)
   obj_ext <- objExtension . paths <$> build
-  map (\p -> (-<.> obj_ext) $ 
-    bin_parent </> dropDirectory1 p) <$> sourceLeaves r ty e
+  map (\p -> (-<.> obj_ext) $ bin_parent </> dropDirectory1 p) 
+    <$> sourceLeaves r test' e
 
-data LibDeps = LibDeps { 
-  includes :: [FilePath], linked :: [(Maybe String, [String])]
-  }
-  
 data ToolChain = ToolChain {
   objCompiler ::
-    [Def] -> LibDeps -> Debug -> FilePath -> FilePath -> Action (),
-  exeCompiler :: 
     [Def] 
-    -> [FilePath] -- ^ Object composition
-    -> [FilePath] -- ^ Include paths 
-    -> [(Maybe FilePath, [String])] -- ^ Library path and library
+    -> [FilePath] -- ^ Include paths
+    -> Debug 
+    -> FilePath -- ^ src file
+    -> FilePath -- ^ dst obj file
+    -> Action (),
+  exeCompiler :: 
+    [FilePath] -- ^ Object composition
+    -> [LinkerExp] -- ^ Linked and library paths 
     -> Debug
     -> FilePath -- ^ The actual binary/exe output
     -> Action (), 
