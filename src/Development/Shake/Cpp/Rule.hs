@@ -50,8 +50,6 @@ exec name obj_type sub_path exec_deps = do
   main_obj <- mainObjPath 
   lift $ 
     (*>) 
-      -- In this case the destination executable is not necessarily 
-      -- test_ for a test object, this is a different scenario 
       (toExeBin obj_type (buildPaths $ paths b) </> name <.> exe)
       (execCompile main_obj exec_deps b) 
   where
