@@ -9,6 +9,7 @@ import           Development.Shake.Cpp.Paths
 import           Development.Shake.Cpp.ExecDeps
 import           Development.Shake.Cpp.ObjectDeps
 import           Development.Shake.Cpp.Obj
+import qualified Development.Shake.Iso as I
 
 import           Control.Applicative ((<$>))
 import           Control.Monad.Reader
@@ -18,7 +19,7 @@ import qualified Data.Map as M
 import           System.Exit
 
 -- | Rule for objects rooted at sub-path
-object :: (BuildPaths -> Iso) -> FilePath -> ObjectDeps -> BuildM Rules ()
+object :: (BuildPaths -> I.Iso) -> FilePath -> ObjectDeps -> BuildM Rules ()
 object pf sub_path object_deps = do 
   obj_ext <- objExtension . paths <$> build
   obj_compiler <- objCompiler . toolchain <$> build
@@ -36,7 +37,7 @@ object pf sub_path object_deps = do
         (S.toList . defs $ object_deps)
         (S.toList . includes $ object_deps)
         debug' 
-        (morphLeft bp cpp_ext pf obj)
+        (I.morphLeft cpp_ext (outputPfx bp) (pf bp) obj)
         obj
             
 exec :: 
@@ -99,14 +100,19 @@ testExecs :: ExecDeps -> BuildM Rules ()
 testExecs exec_deps = do
   b <- build
   let cf = exeCompiler . toolchain $ b 
-  let test_exec_bin = outputPath testExec . buildPaths . paths $ b 
-      test_sfx = testSfx . paths $ b
+  --let test_exec_bin = outputPath testExec . buildPaths . paths $ b 
+  test_exec_bin <- outputDir testExec  
+  let test_sfx = testSfx . paths $ b
   lift $
     -- Test rule dependent on objects source tree for 
     (*>) (test_exec_bin ++ "//" ++ "*" ++ test_sfx <.> exe) $ \exec' -> do
-      let objects  = map (uncurry (toFile $ paths b))  (M.toList $ builtDeps exec_deps)
+      let objects  = 
+            map (uncurry (toFile $ paths b))  (M.toList $ builtDeps exec_deps)
           -- .build/tests/tests/ide/foo_test.o
-          test_obj = morphLeft (buildPaths . paths $ b) "o" testExec exec' 
+          output_pfx = 
+            outputPfx . buildPaths . paths $ b
+          test_obj = 
+            I.morphLeft "o" output_pfx (testExec . buildPaths . paths $ b) exec'
       need $ test_obj : objects 
       cf
        (test_obj : objects)
@@ -120,7 +126,7 @@ testExecs exec_deps = do
 -- 2. run new tests 
 test_states :: BuildM Rules ()
 test_states = do 
-  test_state_path <- outputPath testStates . buildPaths . paths <$> build  
+  test_state_path <- outputDir testStates
   test_state_ext  <- tsExtension . paths <$> build
   bp <- buildPaths . paths <$> build 
   
@@ -128,7 +134,8 @@ test_states = do
     (*>) (test_state_path ++ "//*." ++ test_state_ext) $
       \state -> quietly $ do 
         -- Convert test state to test exec
-        let test_exec = morphLeft bp [] testStates state 
+        -- let test_exec = morphLeft bp [] testStates state 
+        let test_exec = I.morphLeft exe (outputPfx bp) (testStates bp) state 
         need [test_exec]
         -- Note:
         --   This will fail to satisfy the rule if either command fails.
@@ -139,13 +146,11 @@ test_states = do
         -- However this also means that we now need to check the result,
         -- otherwise shake will not consider the ret code as a failing case. 
         (Exit c) <- command [WithStderr False] test_exec []
-        case c of 
-          (ExitFailure _) -> do 
-            liftIO . putStrLn $ "non-zero exit code received" 
-            cmd "rm" state
-          ExitSuccess     -> do 
-            liftIO . putStrLn $ "zero exit code received" 
-            cmd "touch" state
+        let (ran, nostic) = run_case c 
+        (liftIO . putStrLn $ nostic ++ " exit code received") >> cmd ran state
+     where
+        run_case (ExitFailure _) = ("rm", "non-zero") 
+        run_case ExitSuccess     = ("touch", "zero") 
 
 clean :: BuildM Rules ()
 clean = do 

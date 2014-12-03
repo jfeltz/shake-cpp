@@ -1,8 +1,10 @@
+-- TODO eliminate cross-cutting of BuildM with InstallM 
 {-# LANGUAGE TupleSections #-}
 module Development.Shake.Cpp.Build where
 import           Control.Applicative ((<$>))
 import           Control.Monad.Reader
 import           Development.Shake
+import qualified Development.Shake.Iso as I
 import           Development.Shake.Cpp.ExecDeps
 import           Development.Shake.FilePath
 -- import           Development.Shake.Cpp.Obj
@@ -88,15 +90,14 @@ data Env = Env {
   toolchain :: ToolChain
   }
 
-outputDir :: (Monad m, Functor m) => (BuildPaths -> Iso) -> BuildM m FilePath 
+outputDir :: (Monad m, Functor m) => (BuildPaths -> I.Iso) -> BuildM m FilePath 
 outputDir subpath = do 
-  build_paths <- buildPaths . paths <$> build
-  return $ outputPfx build_paths </> output (subpath build_paths) 
+  bp <- buildPaths . paths <$> build
+  return $ I.outputPath (subpath bp) (outputPfx bp)
 
-inputDir :: (Monad m, Functor m) => (BuildPaths -> Iso) -> BuildM m FilePath 
-inputDir subpath = do 
-  build_paths <- buildPaths . paths <$> build
-  return $ input (subpath build_paths) 
+-- Convienence function, as calling Iso's instead gets messy quick.
+inputDir :: (Monad m, Functor m) => (BuildPaths -> I.Iso) -> BuildM m FilePath 
+inputDir subpath = I.input . subpath . buildPaths . paths <$> build
 
 type BuildM m a = ReaderT Env m a 
 

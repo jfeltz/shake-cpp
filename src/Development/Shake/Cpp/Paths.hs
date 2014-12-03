@@ -1,45 +1,19 @@
 module Development.Shake.Cpp.Paths where
 import Development.Shake.FilePath 
+import qualified Development.Shake.Iso as I
 import qualified Data.List as L 
-
-data Iso = Iso { 
-  input :: FilePath,
-  output :: FilePath 
-  } 
-
--- output_path .build/test-bin/tests/ide/foo_test
--- .build/tests/tests/ide/foo_test.o
-
-morphLeft :: BuildPaths -> String -> (BuildPaths -> Iso) -> FilePath -> FilePath 
-morphLeft bp in_ext f output_path = 
-  -- .build/tests/
-  input (f bp) </> dropped_output -<.> in_ext 
-  where
-    -- | Drop the full output prefix of the output file path
-    dropped_output :: FilePath
-    dropped_output = 
-      joinPath $ 
-        drop 
-          (L.length $ splitPath (outputPfx bp </> output (f bp))) 
-          (splitPath output_path) 
 
 data BuildPaths = BuildPaths {
   outputPfx    :: FilePath,
-  sourceObj    :: Iso, -- ^ source objects
-  testObj      :: Iso, -- ^ test objects
-  testExec     :: Iso, -- ^ test executables
-  testStates   :: Iso,  -- ^ stores test pass states
+  sourceObj    :: I.Iso, -- ^ source objects
+  testObj      :: I.Iso, -- ^ test objects
+  testExec     :: I.Iso, -- ^ test executables
+  testStates   :: I.Iso,  -- ^ stores test pass states
   archives     :: FilePath  -- ^ stores custom archive targets
 }
 
 archivePath :: BuildPaths -> FilePath
 archivePath bp = outputPfx bp </> archives bp 
-
-outputPath :: (BuildPaths -> Iso) -> BuildPaths -> FilePath 
-outputPath f bp = outputPfx bp </> (output . f $ bp)
-
-inputPath :: (BuildPaths -> Iso) -> BuildPaths -> FilePath 
-inputPath f = input . f
 
 data Paths = Paths {
   mainName     :: String,
@@ -70,9 +44,9 @@ defaultBuildPaths :: FilePath -> BuildPaths
 defaultBuildPaths build_par =  
   BuildPaths {  
     outputPfx   = build_par, 
-    sourceObj   = Iso "src"   "bin", 
-    testObj     = Iso "tests" "tests", 
-    testExec    = Iso (build_par </> "tests") "test-bin",
-    testStates  = Iso (build_par </> "test-bin") "test-state",
+    sourceObj   = I.Iso "src"   "bin", 
+    testObj     = I.Iso "tests" "tests", 
+    testExec    = I.Iso (build_par </> "tests") "test-bin",
+    testStates  = I.Iso (build_par </> "test-bin") "test-state",
     archives    = "lib"
    }
