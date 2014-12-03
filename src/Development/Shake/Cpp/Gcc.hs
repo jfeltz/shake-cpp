@@ -1,10 +1,12 @@
 module Development.Shake.Cpp.Gcc where
 import qualified Data.List as L
-import           Development.Shake
+import           Development.Shake hiding (Env)
 import           Development.Shake.Cpp.Build
 import           Development.Shake.FilePath
 import           Development.Shake.Util
 import           Development.Shake.Cpp.ExecDeps
+import           Development.Shake.Cpp.Paths
+import           Development.Shake.Cpp.Ld
 
 gccFlag :: Char -> String -> String 
 gccFlag _    []  = [] 
@@ -71,3 +73,17 @@ exeCompiler objects linked debug' exec_bin =
   --  fromInterpreted expr = do
   --    Stdout out <- cmd expr 
   --    return out
+
+defaultEnv :: Debug -> Env
+defaultEnv debug' = 
+  Env { 
+    debug     = debug',
+    paths     = defaultPaths ".build",
+    toolchain = ToolChain { 
+      Development.Shake.Cpp.Build.objCompiler =
+       Development.Shake.Cpp.Gcc.objCompiler,
+      objArchiver = archive,
+      Development.Shake.Cpp.Build.exeCompiler = 
+       Development.Shake.Cpp.Gcc.exeCompiler
+    }
+  }

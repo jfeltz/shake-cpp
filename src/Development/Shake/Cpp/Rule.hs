@@ -175,3 +175,15 @@ all_test_states = do
     let relSources = map dropDirectory1 testSources
     liftIO . print $ relSources
     need [test_states' </> p -<.> test_state_ext | p <- relSources]
+
+testRules :: ObjectDeps -> ExecDeps -> BuildM Rules ()
+testRules test_obj_deps test_exec_deps = do 
+  object testObj [] test_obj_deps
+  testExecs test_exec_deps 
+  -- rule defining build for test executables
+  -- based on build configuration, the prefix and test directory
+  -- are already defined, however the dependencies may cross 
+  -- between objects built in the test directory and elsewhere
+  
+  -- Rule for test pass states
+  test_states 

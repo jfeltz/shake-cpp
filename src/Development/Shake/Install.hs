@@ -1,16 +1,14 @@
 module Development.Shake.Install where
---import Control.Applicative ((<$>))
 import Development.Shake
 import Development.Shake.Iso
 import Development.Shake.FilePath
--- import Development.Shake.Rule
--- import qualified Filesystem.Path.CurrentOS as FS
 import qualified Data.List as L
 import           Control.Monad.Reader
 
 toInclude :: String -> String
 toInclude local_pfx = local_pfx </> "include"
 
+-- TODO libs, shared etc
 data Install = Install {
   outputPfx  :: FilePath, -- ^ /home/jpf/local/project-deps
   includes   :: Iso  -- ^ stores test pass states
@@ -66,4 +64,4 @@ shakeInstall = do
        -- drop the directories until the src directory is reached 
        let src_header = fromTarget paths tgt_header
        need [src_header]
-       cmd "install" "-m 644" src_header tgt_header  
+       cmd "install" "-m 644" src_header tgt_header

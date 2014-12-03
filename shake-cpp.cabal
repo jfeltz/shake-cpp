@@ -8,6 +8,7 @@ cabal-version:       >=1.18
 
 library  
   exposed-modules:     
+    Control.Monad.Reader.Rules
     Development.Shake.Cpp.Build 
     Development.Shake.Cpp.Ld 
     Development.Shake.Cpp.Rule
@@ -18,6 +19,7 @@ library
     Development.Shake.Cpp.ObjectDeps 
     Development.Shake.Install 
     Development.Shake.Iso 
+    Development.Shake.Mode 
   build-depends:   base >=4.7 && <4.8
                  , base-unicode-symbols == 0.2.2.4
                  , bytestring >= 0.10.4.0
