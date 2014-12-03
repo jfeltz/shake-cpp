@@ -45,18 +45,25 @@ fromTarget paths tgt_include =
       L.length . splitPath $ 
         outputPfx paths </> (output . includes) paths 
 
-installIncludes :: InstallM Rules ()
-installIncludes = do 
-  paths <- install
-  let output_pfx = outputPath (includes paths) (outputPfx paths)
-  lift $
-    (output_pfx ++ "//*.hh") *> \tgt_header -> do 
-      -- drop the directories until the src directory is reached 
-      let src_header = fromTarget paths tgt_header
-      need [src_header]
-      cmd "install" "-m 644" src_header tgt_header  
+-- Install rules that are ran when bound 
+-- TODO handle binary case etc, i suspect that will just go in 
+-- a different monad though.
 
-runInstall :: InstallM Rules () -> Install -> IO ()
-runInstall install' = 
-  shakeArgs (shakeOptions { shakeVerbosity = Loud }) 
-  . runReaderT install'
+shakeInstall :: InstallM Rules ()
+shakeInstall = do 
+  paths <- install
+  lift . action $ do 
+    headers <-
+     getDirectoryFiles "" [(input . includes $ paths) ++ "//*"++ ".hh"]
+    -- "Need" the output 
+    let morph = morphRight ".hh" (outputPfx paths) (includes paths)
+    need [ morph h | h <- headers ]
+
+  -- Rule for handling header file installs
+  lift $ 
+   (outputPath (includes paths) (outputPfx paths) ++ "//*.hh") 
+      *> \tgt_header -> do 
+       -- drop the directories until the src directory is reached 
+       let src_header = fromTarget paths tgt_header
+       need [src_header]
+       cmd "install" "-m 644" src_header tgt_header  

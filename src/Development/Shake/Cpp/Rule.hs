@@ -156,3 +156,22 @@ clean :: BuildM Rules ()
 clean = do 
   dir <- outputPfx . buildPaths . paths <$> build 
   lift . phony "clean" $ removeFilesAfter dir ["//*"] 
+
+-- | rule that when activated is only satisfied with all
+-- test states passing
+-- Note: this assumes Rule.test_states is bound 
+all_test_states :: BuildM Rules ()
+all_test_states = do
+  test_dir       <- inputDir testObj
+  test_sfx       <- testSfx . paths <$> build
+  test_states'    <- outputDir testStates
+  cpp_extension  <- cppExtension . paths <$> build
+  test_state_ext <- tsExtension . paths <$> build
+
+  lift . action $ do 
+    testSources <- 
+      getDirectoryFiles "" [test_dir ++ "//*"++ test_sfx ++ "." ++ cpp_extension]
+
+    let relSources = map dropDirectory1 testSources
+    liftIO . print $ relSources
+    need [test_states' </> p -<.> test_state_ext | p <- relSources]

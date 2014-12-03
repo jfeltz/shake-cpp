@@ -16,6 +16,7 @@ library
     Development.Shake.Cpp.Paths 
     Development.Shake.Cpp.ExecDeps 
     Development.Shake.Cpp.ObjectDeps 
+    Development.Shake.Install 
     Development.Shake.Iso 
   build-depends:   base >=4.7 && <4.8
                  , base-unicode-symbols == 0.2.2.4

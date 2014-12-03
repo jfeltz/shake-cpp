@@ -103,7 +103,3 @@ type BuildM m a = ReaderT Env m a
 
 build :: (Monad m) => BuildM m Env 
 build = ask 
-      
-runEnv ::  BuildM Rules () -> Env -> IO ()
-runEnv build' = 
-  shakeArgs (shakeOptions { shakeVerbosity = Loud }) . runReaderT build' 
