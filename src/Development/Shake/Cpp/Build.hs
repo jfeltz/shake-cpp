@@ -6,16 +6,51 @@ import           Control.Monad.Reader
 import           Development.Shake
 import qualified Development.Shake.Iso as I
 import           Development.Shake.Cpp.ExecDeps
+import           Development.Shake.Cpp.ObjectDeps
 import           Development.Shake.FilePath
--- import           Development.Shake.Cpp.Obj
 import qualified Filesystem.Path.CurrentOS as FS
 import qualified Data.List as L
-
-import           Development.Shake.Cpp.Paths
+import qualified Development.Shake.Cpp.Paths as P
+import Data.Monoid
+import qualified Data.Set as S
 
 type Def = String
 type Include = String
 type LibPath = FilePath
+
+type Debug = Bool
+
+-- | The build environment, storing toolchain information, mode,
+-- and path conventions.
+data Env = Env { 
+  debug :: Debug,
+  paths :: P.Paths,
+  toolchain :: ToolChain
+  }
+
+type BuildM m a = ReaderT Env m a 
+
+{- various helpers for reaching into BuildM -}
+
+env :: (Monad m) => BuildM m Env 
+env = ask 
+
+buildPaths :: (Monad m, Functor m) => BuildM m P.BuildPaths
+buildPaths = P.buildPaths . paths <$> env
+
+outputDir :: (Monad m, Functor m) => (P.BuildPaths -> I.Iso) -> BuildM m FilePath 
+outputDir f = do 
+  bp <- buildPaths
+  return $ I.outputPath (f bp) (P.outputPfx bp)
+
+inputDir :: (Monad m, Functor m) => (P.BuildPaths -> I.Iso) -> BuildM m FilePath 
+inputDir f = I.input . f <$> buildPaths
+
+srcObjDeps :: (Monad m, Functor m) => BuildM m ObjectDeps 
+srcObjDeps = ObjectDeps mempty . S.singleton <$> inputDir P.sourceObj
+
+testObjDeps :: (Monad m, Functor m) => BuildM m ObjectDeps 
+testObjDeps = ObjectDeps mempty . S.singleton <$> inputDir P.testObj
 
 data Target = 
   Src { path :: FilePath, test :: Bool } 
@@ -26,16 +61,16 @@ data Target =
 -- | return all Cpp sources under sub path
 sourceLeaves :: FilePath -> Bool -> Bool -> BuildM Action [FilePath]
 sourceLeaves sub_path test' use_exec = do 
-  cpp_ext <- cppExtension . paths <$> build
+  cpp_ext <- P.cppExtension . paths <$> env
   (parent, is_exec) <- 
     if test'
       then do 
-        sfx <- testSfx . paths <$> build 
-        test_dir <- inputDir testObj
+        sfx <- P.testSfx . paths <$> env 
+        test_dir <- inputDir P.testObj
         return (test_dir, L.isSuffixOf sfx . basename) 
       else do 
-        main <- mainName . paths <$> build 
-        src_dir <- inputDir sourceObj
+        main <- P.mainName . paths <$> env 
+        src_dir <- inputDir P.sourceObj
         return (src_dir, (==) main . basename) 
 
   lift $
@@ -48,18 +83,18 @@ sourceLeaves sub_path test' use_exec = do
 toFiles :: Target -> BuildM Action [FilePath]
 toFiles (Src p test') = 
   let file = FS.encodeString . FS.filename . FS.decodeString $ p in do
-    paths' <- paths <$> build
+    paths' <- paths <$> env
     (bin_parent, filename) <- 
       if test' 
-        then (, file) <$> outputDir testObj
-        else (, file ++ testSfx paths') <$> outputDir sourceObj
+        then (, file) <$> outputDir P.testObj
+        else (, file ++ P.testSfx paths') <$> outputDir P.sourceObj
     return
       [bin_parent  
         </> (FS.encodeString . FS.directory . FS.decodeString $ p)
-        </> (filename <.> objExtension paths')] 
+        </> (filename <.> P.objExtension paths')] 
 toFiles (Leaves r test' e) = do 
-  bin_parent <- outputDir (if test' then testObj else sourceObj)
-  obj_ext <- objExtension . paths <$> build
+  bin_parent <- outputDir (if test' then P.testObj else P.sourceObj)
+  obj_ext <- P.objExtension . paths <$> env
   map (\p -> (-<.> obj_ext) $ bin_parent </> dropDirectory1 p) 
     <$> sourceLeaves r test' e
 
@@ -79,27 +114,3 @@ data ToolChain = ToolChain {
     -> Action (), 
   objArchiver :: FilePath -> [FilePath] -> Action () 
 }
-
-type Debug = Bool
-
--- | The build environment, storing toolchain information, mode,
--- and path conventions.
-data Env = Env { 
-  debug :: Debug,
-  paths :: Paths,
-  toolchain :: ToolChain
-  }
-
-outputDir :: (Monad m, Functor m) => (BuildPaths -> I.Iso) -> BuildM m FilePath 
-outputDir subpath = do 
-  bp <- buildPaths . paths <$> build
-  return $ I.outputPath (subpath bp) (outputPfx bp)
-
--- Convienence function, as calling Iso's instead gets messy quick.
-inputDir :: (Monad m, Functor m) => (BuildPaths -> I.Iso) -> BuildM m FilePath 
-inputDir subpath = I.input . subpath . buildPaths . paths <$> build
-
-type BuildM m a = ReaderT Env m a 
-
-build :: (Monad m) => BuildM m Env 
-build = ask 

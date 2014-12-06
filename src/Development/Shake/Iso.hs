@@ -14,10 +14,10 @@ morphLeft ext output_pfx iso output_tgt =
   where
     dropped = L.length $ splitPath (output_pfx </> output iso)
 
-outputPath :: Iso -> FilePath -> FilePath 
-outputPath iso output_pfx = output_pfx </> output iso 
-
 morphRight :: String -> FilePath -> Iso -> FilePath -> FilePath 
 morphRight ext output_pfx iso input_file =
   outputPath iso output_pfx </> input_file -<.> ext
+
+outputPath :: Iso -> FilePath -> FilePath 
+outputPath iso output_pfx = output_pfx </> output iso 
 

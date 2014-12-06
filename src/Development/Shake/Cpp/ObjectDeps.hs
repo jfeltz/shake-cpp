@@ -8,9 +8,13 @@ data ObjectDeps = ObjectDeps {
   } deriving Show
   
 instance Monoid ObjectDeps where
-  mempty       = ObjectDeps mempty mempty
+  mempty       = 
+    ObjectDeps mempty mempty
   mappend l r  = 
     ObjectDeps {
       defs = mappend (defs l) (defs r)
       , includes = mappend (includes l) (includes r) 
       }
+
+fromDefs :: [String] -> ObjectDeps
+fromDefs defs' = mempty { defs = S.fromList defs' } 

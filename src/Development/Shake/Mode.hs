@@ -6,56 +6,57 @@ import qualified Data.List as L
 import qualified System.Environment as E
 import           Development.Shake.Cpp.Build
 import qualified Development.Shake.Cpp.Rule as Rule
+import           Development.Shake.Install
+
+data Mode = Mode { title :: String, kw :: String, io :: IO () } 
 
 data Modes = Modes { 
   def :: (String, IO ()),
   toMode :: M.Map String (String, IO ()) 
   }
+  
+insert :: Mode -> Modes -> Modes 
+insert mode modes = 
+  modes { toMode = M.insert (kw mode) (title mode, io mode) (toMode modes) } 
 
-data Mode = Mode { title :: String, kw :: String, io :: IO () } 
+fromMode :: Mode -> Modes
+fromMode test_mode = 
+  insert test_mode $ Modes (kw test_mode, io test_mode) M.empty 
+     
+installMode :: Verbosity -> InstallM Rules () -> Install -> Mode
+installMode verbosity rules install' = 
+  Mode "Install" "install" $ runRules verbosity rules install' 
+
+testMode :: BuildM Rules () -> (Debug -> Env) -> Mode
+testMode test_rules to_env = 
+  Mode "Test" "test" $ do
+    test_goals <- E.getArgs
+
+    let (preposition, rules) = fromEmpty (L.null test_goals) 
+        debugBuild = to_env nonOptimized
+
+    putStrLn $ "test mode with" ++ preposition ++ " args"
+    runRules Loud rules debugBuild
+   where
+    nonOptimized :: Bool 
+    nonOptimized = True
+
+    -- | I think this is actually a use-case for arrows.
+    -- It could also be reduced further with lenses.
+    fromEmpty :: Bool -> (String, BuildM Rules ())
+    fromEmpty True  = ("out", test_rules >> Rule.all_test_states) 
+    fromEmpty False = ([], test_rules) 
 
 fromModes :: Modes -> IO ()
 fromModes modes = do 
   args <- E.getArgs
   if L.null args 
     then 
-      uncurry fromMode $ def modes 
+      uncurry fromMode' $ def modes 
     else
       case M.lookup (L.head args) (toMode modes) of
-        Nothing            ->
-          uncurry fromMode (def modes)
-        Just (title', io') ->
-          E.withArgs (L.drop 1 args) $ fromMode title' io' 
+        Nothing            -> uncurry fromMode' (def modes)
+        Just (title', io') -> E.withArgs (L.drop 1 args) $ fromMode' title' io' 
   where
-    fromMode :: String -> IO () -> IO ()
-    fromMode title' m = putStrLn ("Build Mode: " ++ title' ++ "\n") >> m
-
-defaultTestMode :: BuildM Rules () -> (Debug -> Env) -> Mode
-defaultTestMode test_rules to_env = 
-  Mode "Test Service" "test" $ do
-    let debugBuild = to_env nonOptimized
-    test_goals <- E.getArgs
-
-    if L.null test_goals -- run all failing or changed tests
-      then do 
-        putStrLn "test mode without args"
-        runRules Loud
-          (test_rules >> Rule.all_test_states) 
-          debugBuild 
-      else do  
-        putStrLn "test mode with args"
-        runRules Loud test_rules debugBuild
-   where
-     nonOptimized = True
-
-defaultModes :: Mode -> Modes
-defaultModes test_mode = 
-  Modes
-    (title defaultMode, io defaultMode)
-    (M.fromList $
-      ("release", ("Release", putStrLn "TODO."))
-      : map toEntry [test_mode])
-  where
-    toEntry :: Mode -> (String, (String, IO ()))
-    toEntry m = (kw m, (title m, io m)) 
-    defaultMode = test_mode  
+    fromMode' :: String -> IO () -> IO ()
+    fromMode' title' m = putStrLn ("Mode: " ++ title' ++ " Service \n") >> m

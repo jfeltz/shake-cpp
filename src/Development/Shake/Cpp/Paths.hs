@@ -1,7 +1,6 @@
 module Development.Shake.Cpp.Paths where
 import Development.Shake.FilePath 
 import qualified Development.Shake.Iso as I
-import qualified Data.List as L 
 
 data BuildPaths = BuildPaths {
   outputPfx    :: FilePath,

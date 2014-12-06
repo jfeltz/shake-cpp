@@ -9,7 +9,10 @@ cabal-version:       >=1.18
 library  
   exposed-modules:     
     Control.Monad.Reader.Rules
+    Development.Shake.Cpp.Boost 
+    Development.Shake.Cpp.LLVM 
     Development.Shake.Cpp.Build 
+    Development.Shake.Cpp.Build.Gcc 
     Development.Shake.Cpp.Ld 
     Development.Shake.Cpp.Rule
     Development.Shake.Cpp.Gcc 

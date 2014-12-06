@@ -1,11 +1,10 @@
--- | TODO additional methods that read from a pattern -> BuildM Rules () 
--- mapping for custom cases, since not all tests and sources will link the same
+-- | TODO test states will overlap with non-Cpp languages 
 
 module Development.Shake.Cpp.Rule where
 import           Development.Shake
 import           Development.Shake.FilePath
-import           Development.Shake.Cpp.Build
-import           Development.Shake.Cpp.Paths
+import qualified Development.Shake.Cpp.Build as B
+import qualified Development.Shake.Cpp.Paths as P
 import           Development.Shake.Cpp.ExecDeps
 import           Development.Shake.Cpp.ObjectDeps
 import           Development.Shake.Cpp.Obj
@@ -17,16 +16,16 @@ import qualified Data.List as L
 import qualified Data.Set as S
 import qualified Data.Map as M
 import           System.Exit
-
+                 
 -- | Rule for objects rooted at sub-path
-object :: (BuildPaths -> I.Iso) -> FilePath -> ObjectDeps -> BuildM Rules ()
+object :: (P.BuildPaths -> I.Iso) -> FilePath -> ObjectDeps -> B.BuildM Rules ()
 object pf sub_path object_deps = do 
-  obj_ext <- objExtension . paths <$> build
-  obj_compiler <- objCompiler . toolchain <$> build
-  bp <- buildPaths . paths <$> build 
-  cpp_ext <- cppExtension . paths <$> build 
-  debug' <- debug <$> build 
-  bin <- outputDir pf
+  obj_ext <- P.objExtension . B.paths <$> B.env
+  obj_compiler <- B.objCompiler . B.toolchain <$> B.env
+  bp <- B.buildPaths
+  cpp_ext <- P.cppExtension . B.paths <$> B.env 
+  debug' <- B.debug <$> B.env 
+  bin <- B.outputDir pf
   
   -- FIXME may not be arch neutral
   let parent = normalise $ bin </> sub_path 
@@ -37,105 +36,100 @@ object pf sub_path object_deps = do
         (S.toList . defs $ object_deps)
         (S.toList . includes $ object_deps)
         debug' 
-        (I.morphLeft cpp_ext (outputPfx bp) (pf bp) obj)
+        (I.morphLeft cpp_ext (P.outputPfx bp) (pf bp) obj)
         obj
             
 exec :: 
   String 
   -> Obj
-  -> FilePath -- The parent in the source tree 
+  -> FilePath
   -> ExecDeps 
-  -> BuildM Rules ()-- Deps that can be anywhere
+  -> B.BuildM Rules ()
 exec name obj_type sub_path exec_deps = do 
-  b <- build
+  e <- B.env 
+  bp <- B.buildPaths 
   main_obj <- mainObjPath 
   lift $ 
     (*>) 
-      (toExeBin obj_type (buildPaths $ paths b) </> name <.> exe)
-      (execCompile main_obj exec_deps b) 
+      (toExeBin obj_type bp </> name <.> exe)
+      (execCompile main_obj exec_deps e) 
   where
     mainObjPath = do 
-      b <- build
+      e <- B.env
+      bp <- B.buildPaths
+      paths' <- B.paths <$> B.env 
       return $ 
         (toLibBin 
           obj_type 
-          (buildPaths $ paths b) </> sub_path </> (mainName . paths $ b)) 
-          <.> objExtension (paths b)
+          bp </> sub_path </> (P.mainName . B.paths $ e)) 
+          <.> P.objExtension paths'
 
-execCompile :: FilePath -> ExecDeps -> Env -> FilePath -> Action ()
-execCompile main_obj exe_deps b =
-  let cf = exeCompiler $ toolchain b in
+execCompile :: FilePath -> ExecDeps -> B.Env -> FilePath -> Action ()
+execCompile main_obj exe_deps b_env =
+  let cf = B.exeCompiler $ B.toolchain b_env in
     \exec_bin -> do
      need $ main_obj : objects 
-     cf 
-       (main_obj : objects)
-       (exeLinked exe_deps)
-       (debug b)
-       exec_bin
+     cf (main_obj : objects) (exeLinked exe_deps) (B.debug b_env) exec_bin
   where 
-    objects = map (uncurry (toFile (paths b))) (M.toList $ builtDeps exe_deps)
+    objects =
+      map (uncurry (toFile (B.paths b_env))) (M.toList $ builtDeps exe_deps)
 
-archive :: FilePath -> [Target] -> BuildM Rules () 
+archive :: FilePath -> [B.Target] -> B.BuildM Rules () 
 archive dst_obj target_deps = do 
-  archiver_f  <- objArchiver . toolchain <$> build
-  archive_bin <- archivePath . buildPaths . paths <$> build
-  obj_ext <- objExtension . paths <$> build
-  b <- build
+  archiver_f  <- B.objArchiver . B.toolchain <$> B.env
+  archive_bin <- P.archivePath <$> B.buildPaths
+  obj_ext <- P.objExtension . B.paths <$> B.env
+  e <- B.env
 
   lift $ (*>) (archive_bin </> dst_obj <.> obj_ext) $ \obj -> do 
-    objects <- L.concat <$> mapM (\t -> runReaderT (toFiles t) b) target_deps
+    objects <- L.concat <$> mapM (\t -> runReaderT (B.toFiles t) e) target_deps
     need objects
     archiver_f obj objects
      
 -- | Pre-conditiation: filepath is relative  
-toFile :: Paths -> FilePath -> Obj  -> FilePath
+toFile :: P.Paths -> FilePath -> Obj  -> FilePath
 toFile paths' rel dep = 
-  (-<.> objExtension paths') (toLibBin dep (buildPaths paths') </> rel)
+  (-<.> P.objExtension paths') (toLibBin dep (P.buildPaths paths') </> rel)
 
--- | Env a rule covering a general case for test executables. 
+-- | A rule covering a general case for test executables. 
 --   By convention, each test executable depends on an object following
 --   test-bin/../test_pfx*.o 
 
-testExecs :: ExecDeps -> BuildM Rules ()
+testExecs :: ExecDeps -> B.BuildM Rules ()
 testExecs exec_deps = do
-  b <- build
-  let cf = exeCompiler . toolchain $ b 
-  --let test_exec_bin = outputPath testExec . buildPaths . paths $ b 
-  test_exec_bin <- outputDir testExec  
-  let test_sfx = testSfx . paths $ b
+  debug' <- B.debug <$> B.env
+  paths' <- B.paths <$> B.env
+  bp <- B.buildPaths
+  cf <- B.exeCompiler . B.toolchain <$> B.env 
+  test_exec_bin <- B.outputDir P.testExec  
+  test_sfx <- P.testSfx . B.paths <$> B.env
   lift $
     -- Test rule dependent on objects source tree for 
     (*>) (test_exec_bin ++ "//" ++ "*" ++ test_sfx <.> exe) $ \exec' -> do
       let objects  = 
-            map (uncurry (toFile $ paths b))  (M.toList $ builtDeps exec_deps)
+            map (uncurry (toFile paths'))  (M.toList $ builtDeps exec_deps)
           -- .build/tests/tests/ide/foo_test.o
-          output_pfx = 
-            outputPfx . buildPaths . paths $ b
-          test_obj = 
-            I.morphLeft "o" output_pfx (testExec . buildPaths . paths $ b) exec'
+          output_pfx = P.outputPfx bp
+          test_obj   = 
+            I.morphLeft (P.objExtension paths') output_pfx (P.testExec bp) exec'
       need $ test_obj : objects 
-      cf
-       (test_obj : objects)
-       (exeLinked exec_deps)
-       (debug b)
-       exec'
+      cf (test_obj : objects) (exeLinked exec_deps) debug' exec'
 
 -- Actions that satisfy a test pass state file 
 -- The goal of this is as follows:
 -- 1. run previously failed or changed test execs
 -- 2. run new tests 
-test_states :: BuildM Rules ()
+test_states :: B.BuildM Rules ()
 test_states = do 
-  test_state_path <- outputDir testStates
-  test_state_ext  <- tsExtension . paths <$> build
-  bp <- buildPaths . paths <$> build 
+  bp <- B.buildPaths
+  test_state_path <- B.outputDir P.testStates
+  test_state_ext <- P.tsExtension . B.paths <$> B.env 
   
   lift $
     (*>) (test_state_path ++ "//*." ++ test_state_ext) $
       \state -> quietly $ do 
         -- Convert test state to test exec
-        -- let test_exec = morphLeft bp [] testStates state 
-        let test_exec = I.morphLeft exe (outputPfx bp) (testStates bp) state 
+        let test_exec = I.morphLeft exe (P.outputPfx bp) (P.testStates bp) state
         need [test_exec]
         -- Note:
         --   This will fail to satisfy the rule if either command fails.
@@ -152,38 +146,34 @@ test_states = do
         run_case (ExitFailure _) = ("rm", "non-zero") 
         run_case ExitSuccess     = ("touch", "zero") 
 
-clean :: BuildM Rules ()
+clean :: B.BuildM Rules ()
 clean = do 
-  dir <- outputPfx . buildPaths . paths <$> build 
+  dir <- P.outputPfx <$> B.buildPaths  
   lift . phony "clean" $ removeFilesAfter dir ["//*"] 
 
 -- | rule that when activated is only satisfied with all
 -- test states passing
 -- Note: this assumes Rule.test_states is bound 
-all_test_states :: BuildM Rules ()
+all_test_states :: B.BuildM Rules ()
 all_test_states = do
-  test_dir       <- inputDir testObj
-  test_sfx       <- testSfx . paths <$> build
-  test_states'    <- outputDir testStates
-  cpp_extension  <- cppExtension . paths <$> build
-  test_state_ext <- tsExtension . paths <$> build
+  paths' <- B.paths <$> B.env 
+  test_dir    <- B.inputDir P.testObj
+  test_states'<- B.outputDir P.testStates
+  
+  let cpp_extension  = P.cppExtension paths' 
+      test_state_ext = P.tsExtension paths' 
+      test_sfx    = P.testSfx paths' 
 
   lift . action $ do 
     testSources <- 
       getDirectoryFiles "" [test_dir ++ "//*"++ test_sfx ++ "." ++ cpp_extension]
 
     let relSources = map dropDirectory1 testSources
-    liftIO . print $ relSources
     need [test_states' </> p -<.> test_state_ext | p <- relSources]
 
-testRules :: ObjectDeps -> ExecDeps -> BuildM Rules ()
+-- | Convenience rules covering correlating test objects, execs, and states
+testRules :: ObjectDeps -> ExecDeps -> B.BuildM Rules ()
 testRules test_obj_deps test_exec_deps = do 
-  object testObj [] test_obj_deps
+  object P.testObj [] test_obj_deps
   testExecs test_exec_deps 
-  -- rule defining build for test executables
-  -- based on build configuration, the prefix and test directory
-  -- are already defined, however the dependencies may cross 
-  -- between objects built in the test directory and elsewhere
-  
-  -- Rule for test pass states
   test_states 
