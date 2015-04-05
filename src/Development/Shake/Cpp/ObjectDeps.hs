@@ -18,3 +18,6 @@ instance Monoid ObjectDeps where
 
 fromDefs :: [String] -> ObjectDeps
 fromDefs defs' = mempty { defs = S.fromList defs' } 
+
+fromIncludes :: [String] -> ObjectDeps
+fromIncludes includes' = mempty { includes = S.fromList includes' } 

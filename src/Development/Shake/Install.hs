@@ -1,6 +1,7 @@
 -- TODO Install data-structure is C++ specific, so this should be moved 
 
 module Development.Shake.Install where
+import Prelude hiding ((*>))
 import Development.Shake
 import Development.Shake.Iso
 import Development.Shake.FilePath

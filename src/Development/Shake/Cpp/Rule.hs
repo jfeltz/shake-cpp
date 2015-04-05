@@ -1,6 +1,7 @@
 -- | TODO test states will overlap with non-Cpp languages 
 
 module Development.Shake.Cpp.Rule where
+import Prelude hiding ((*>))
 import           Development.Shake
 import           Development.Shake.FilePath
 import qualified Development.Shake.Cpp.Build as B

@@ -27,30 +27,29 @@ llvmExec :: ExecDeps
 llvmExec = ExecDeps mempty [Evaluated "llvm-config --libs all --ldflags"] 
 
 clang :: ExecDeps
-clang = mempty { 
-  exeLinked = 
-    L.map Lib
-      ["pthread",
-       "tinfo", 
-      "dl", 
-      "clangTooling", 
-      "clangFrontendTool", 
-      "clangFrontend", 
-      "clangDriver", 
-      "clangSerialization", 
-      "clangCodeGen", 
-      "clangParse", 
-      "clangSema", 
-      "clangStaticAnalyzerFrontend", 
-      "clangStaticAnalyzerCheckers", 
-      "clangStaticAnalyzerCore", 
-      "clangAnalysis", 
-      "clangARCMigrate", 
-      "clangRewriteFrontend", 
-      "clangEdit", 
-      "clangAST", 
-      "clangASTMatchers", 
-      "clangLex", 
-      "clangBasic", 
-      "z"]
-    }
+clang = 
+  fromLibs 
+    ["pthread",
+     "tinfo", 
+    "dl", 
+    "clang",
+    "clangTooling", 
+    "clangFrontendTool", 
+    "clangFrontend", 
+    "clangDriver", 
+    "clangSerialization", 
+    "clangCodeGen", 
+    "clangParse", 
+    "clangSema", 
+    "clangStaticAnalyzerFrontend", 
+    "clangStaticAnalyzerCheckers", 
+    "clangStaticAnalyzerCore", 
+    "clangAnalysis", 
+    "clangARCMigrate", 
+    "clangRewriteFrontend", 
+    "clangEdit", 
+    "clangAST", 
+    "clangASTMatchers", 
+    "clangLex", 
+    "clangBasic", 
+    "z"]
